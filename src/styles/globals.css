@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #f7f4ee;
+  --color-paper: #fffcf7;
+  --color-ink: #24382e;
+  --color-muted: #6f786e;
+  --color-green: #244e39;
+  --color-mid: #63846b;
+  --color-sage: #e3ebe0;
+  --color-line: #e7e4dc;
+  --color-gold: #b88f61;
+  --color-rose: #f6e9e1;
+  --font-sans: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-serif: Georgia, "Batang", serif;
+}
+
+body {
+  margin: 0;
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
