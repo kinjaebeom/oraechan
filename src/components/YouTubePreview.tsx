@@ -1,260 +1,202 @@
 
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 
-const PREVIEW_DURATION = 20;
-
-function getYouTubeVideoId(input: string): string | null {
-  try {
-    const url = new URL(input.trim());
-    const hostname = url.hostname.toLowerCase();
-
-    let id: string | null = null;
-
-    if (
-      hostname === "youtube.com" ||
-      hostname === "www.youtube.com" ||
-      hostname === "m.youtube.com" ||
-      hostname === "music.youtube.com"
-    ) {
-      if (url.pathname === "/watch") {
-        id = url.searchParams.get("v");
-      } else {
-        const match = url.pathname.match(
-          /^\/(?:shorts|embed|live)\/([^/]+)/
-        );
-        id = match?.[1] ?? null;
-      }
-    } else if (
-      hostname === "youtu.be" ||
-      hostname === "www.youtu.be"
-    ) {
-      id = url.pathname.split("/")[1] ?? null;
-    }
-
-    if (!id || !/^[a-zA-Z0-9_-]{11}$/.test(id)) {
-      return null;
-    }
-
-    return id;
-  } catch {
-    return null;
-  }
-}
-
-function formatTime(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-
-  return `${String(minutes).padStart(2, "0")}:${String(
-    remainingSeconds
-  ).padStart(2, "0")}`;
-}
-
-type ActivePreview = {
-  videoId: string;
-  start: number;
-};
+const FEATURED_SONG = {
+  id: "sending-song",
+  title: "파송의 노래",
+  artist: "예수전도단 버전",
+  composer: "고형원",
+  genre: "CCM",
+  description:
+    "새로운 길을 앞두고 있을 때, 주님이 함께하신다는 믿음과 용기를 전하는 찬양입니다.",
+  message: "평안 · 용기 · 사명",
+  youtubeId: "CnqNsp-6yRE",
+  previewStart: 0,
+  previewDuration: 20,
+} as const;
 
 export default function YouTubePreview() {
-  const [url, setUrl] = useState("");
-  const [startSeconds, setStartSeconds] = useState("30");
-  const [activePreview, setActivePreview] =
-    useState<ActivePreview | null>(null);
-  const [error, setError] = useState("");
+  const [isPlayerOpen, setIsPlayerOpen] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const { youtubeId, previewStart, previewDuration } =
+    FEATURED_SONG;
 
-    const videoId = getYouTubeVideoId(url);
-    const start = Number(startSeconds);
+  const previewEnd = previewStart + previewDuration;
 
-    if (!videoId) {
-      setError("올바른 YouTube 영상 주소를 입력해 주세요.");
-      setActivePreview(null);
-      return;
-    }
+  const embedUrl =
+    `https://www.youtube-nocookie.com/embed/${youtubeId}` +
+    `?start=${previewStart}` +
+    `&end=${previewEnd}` +
+    `&autoplay=0` +
+    `&controls=1` +
+    `&playsinline=1`;
 
-    if (
-      !Number.isSafeInteger(start) ||
-      start < 0 ||
-      start > 86400
-    ) {
-      setError("시작 시간은 0~86400초 사이로 입력해 주세요.");
-      setActivePreview(null);
-      return;
-    }
-
-    setError("");
-    setActivePreview({
-      videoId,
-      start,
-    });
-  }
-
-  function handleStop() {
-    setActivePreview(null);
-  }
-
-  const embedUrl = activePreview
-    ? `https://www.youtube.com/embed/${
-        activePreview.videoId
-      }?start=${activePreview.start}&end=${
-        activePreview.start + PREVIEW_DURATION
-      }&autoplay=0&controls=1&playsinline=1&rel=0`
-    : null;
-
-  const originalUrl = activePreview
-    ? `https://www.youtube.com/watch?v=${activePreview.videoId}`
-    : null;
+  const youtubeUrl =
+    `https://www.youtube.com/watch?v=${youtubeId}`;
 
   return (
     <section
       id="youtube-preview"
-      aria-labelledby="youtube-preview-title"
-      className="mx-auto max-w-[1250px] scroll-mt-8 px-[26px] py-16 max-sm:px-5"
+      aria-labelledby="featured-song-title"
+      className="mx-auto max-w-[1250px] scroll-mt-8 px-[26px] py-20 max-sm:px-5"
     >
-      <div className="mx-auto max-w-[820px]">
+      <div className="mx-auto max-w-[850px]">
         <p className="mb-3 text-[11px] font-extrabold tracking-[2.5px] text-[#63846B]">
-          03 · LISTEN TO A SONG
+          03 · TODAY&apos;S PRAISE
         </p>
 
-        <h2
-          id="youtube-preview-title"
-          className="mb-3 font-serif text-3xl font-semibold tracking-tight text-[#24382E] max-sm:text-[27px]"
-        >
-          찬양을 잠시 들어볼까요?
+        <h2 className="mb-3 font-serif text-3xl font-semibold text-[#24382E] max-sm:text-[27px]">
+          오늘의 오래찬
         </h2>
 
         <p className="mb-8 text-sm leading-7 text-[#6F786E]">
-          YouTube 영상 주소를 입력하면 원하는 부분부터
-          20초간 미리 들어볼 수 있어요.
+          오래도록 사랑받아 온 찬양 한 곡을 소개합니다.
           <br />
-          현재는 실제 찬양 데이터를 연결하기 전의 테스트
-          기능입니다.
+          잠시 멈춰, 찬양이 전하는 메시지에 귀 기울여 보세요.
         </p>
 
-        <div className="rounded-[24px] border border-[#E7E4DC] bg-[#FFFCF7] p-6 shadow-sm max-sm:p-4">
-          <form onSubmit={handleSubmit} noValidate>
-            <div className="mb-5">
-              <label
-                htmlFor="youtube-url"
-                className="mb-2 block text-sm font-semibold text-[#24382E]"
-              >
-                YouTube 영상 링크
-              </label>
-
-              <input
-                id="youtube-url"
-                type="url"
-                value={url}
-                onChange={(event) => setUrl(event.target.value)}
-                placeholder="https://www.youtube.com/watch?v=..."
-                aria-describedby={
-                  error ? "youtube-preview-error" : undefined
-                }
-                className="w-full rounded-xl border border-[#D7DED4] bg-white px-4 py-3 text-sm text-[#24382E] outline-none transition-colors focus:border-[#244E39]"
-              />
-            </div>
-
-            <div className="mb-6">
-              <label
-                htmlFor="preview-start"
-                className="mb-2 block text-sm font-semibold text-[#24382E]"
-              >
-                미리 듣기 시작 시간 (초)
-              </label>
-
-              <input
-                id="preview-start"
-                type="number"
-                min="0"
-                max="86400"
-                step="1"
-                value={startSeconds}
-                onChange={(event) =>
-                  setStartSeconds(event.target.value)
-                }
-                className="w-full rounded-xl border border-[#D7DED4] bg-white px-4 py-3 text-sm text-[#24382E] outline-none focus:border-[#244E39]"
-              />
-
-              <p className="mt-2 text-xs text-[#6F786E]">
-                예: 70초를 입력하면 1분 10초부터 1분
-                30초까지 재생 구간을 설정해요.
-              </p>
-            </div>
-
-            {error && (
-              <p
-                id="youtube-preview-error"
-                role="alert"
-                className="mb-4 text-sm text-red-700"
-              >
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              className="w-full rounded-full bg-[#244E39] px-6 py-3.5 text-sm font-bold text-white transition-colors hover:bg-[#35664B] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#244E39]"
+        <article className="overflow-hidden rounded-[24px] border border-[#E7E4DC] bg-[#FFFCF7] shadow-[0_12px_38px_rgba(27,54,39,0.07)]">
+          {/* Song Header */}
+          <div className="flex items-center gap-5 border-b border-[#E7E4DC] p-7 max-sm:gap-4 max-sm:p-5">
+            <div
+              aria-hidden="true"
+              className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[18px] bg-[#E3EBE0] font-serif text-4xl text-[#244E39] max-sm:h-16 max-sm:w-16"
             >
-              ♪ 미리 듣기 준비하기
-            </button>
-          </form>
+              ♫
+            </div>
 
-          {activePreview && embedUrl && originalUrl && (
-            <div className="mt-8 border-t border-[#E7E4DC] pt-7">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-bold text-[#24382E]">
-                    찬양 미리 듣기
-                  </h3>
+            <div className="min-w-0 flex-1">
+              <span className="mb-2 inline-block rounded-full bg-[#E3EBE0] px-3 py-1 text-[11px] font-semibold text-[#244E39]">
+                첫 번째 추천 찬양
+              </span>
 
-                  <p className="mt-1 text-xs text-[#6F786E]">
-                    {formatTime(activePreview.start)} ~{" "}
-                    {formatTime(
-                      activePreview.start + PREVIEW_DURATION
-                    )}
-                  </p>
+              <h3
+                id="featured-song-title"
+                className="font-serif text-[26px] font-bold text-[#24382E] max-sm:text-[22px]"
+              >
+                {FEATURED_SONG.title}
+              </h3>
+
+              <p className="mt-1 text-xs text-[#6F786E]">
+                {FEATURED_SONG.artist} · {FEATURED_SONG.genre}
+              </p>
+            </div>
+          </div>
+
+          {/* Song Description */}
+          <div className="px-7 pt-7 max-sm:px-5">
+            <div className="mb-5">
+              <p className="mb-2 text-[11px] font-bold tracking-[1.5px] text-[#63846B]">
+                ABOUT THIS SONG
+              </p>
+
+              <p className="text-sm leading-7 text-[#526B59]">
+                {FEATURED_SONG.description}
+              </p>
+            </div>
+
+            <div className="mb-6 flex flex-wrap gap-2">
+              {FEATURED_SONG.message.split(" · ").map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-[#D7DED4] px-3 py-1.5 text-xs text-[#526B59]"
+                >
+                  #{tag}
+                </span>
+              ))}
+            </div>
+
+            <div className="mb-7 rounded-2xl bg-[#F7F4EE] px-5 py-4">
+              <p className="mb-1 text-xs font-bold text-[#244E39]">
+                오래찬의 한마디
+              </p>
+
+              <p className="text-sm leading-7 text-[#6F786E]">
+                아직 앞에 놓인 길이 낯설게 느껴지나요?
+                이 찬양을 들으며 그 길을 혼자 걷는 것이
+                아니라는 메시지를 묵상해 보세요.
+              </p>
+            </div>
+
+            {/* Preview Player */}
+            {isPlayerOpen ? (
+              <div className="mb-7">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-[#24382E]">
+                      {FEATURED_SONG.title} · 미리 듣기
+                    </p>
+
+                    <p className="mt-1 text-xs text-[#6F786E]">
+                      {previewStart}초 ~ {previewEnd}초 구간
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsPlayerOpen(false)}
+                    className="rounded-full border border-[#D7DED4] px-4 py-2 text-xs font-semibold text-[#526B59] transition hover:bg-[#E3EBE0]"
+                  >
+                    플레이어 닫기
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleStop}
-                  className="rounded-full border border-[#D7DED4] px-4 py-2 text-xs font-semibold text-[#526B59] hover:bg-[#E3EBE0]"
-                >
-                  플레이어 닫기
-                </button>
-              </div>
+                <div className="aspect-video w-full overflow-hidden rounded-2xl bg-[#24382E]">
+                  <iframe
+                    src={embedUrl}
+                    title={`${FEATURED_SONG.title} YouTube 미리 듣기`}
+                    className="h-full w-full"
+                    allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                  />
+                </div>
 
-              <div className="aspect-video w-full overflow-hidden rounded-2xl bg-[#24382E]">
-                <iframe
-                  key={embedUrl}
-                  src={embedUrl}
-                  title="YouTube 찬양 미리 듣기"
-                  className="h-full w-full"
-                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                />
+                <p className="mt-3 text-xs leading-6 text-[#6F786E]">
+                  영상의 재생 버튼을 누르면 지정된 구간을
+                  감상할 수 있어요. 영상 설정에 따라
+                  재생이 제한될 수 있습니다.
+                </p>
               </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsPlayerOpen(true)}
+                className="mb-7 flex w-full items-center justify-center gap-3 rounded-full bg-[#244E39] px-6 py-4 text-sm font-bold text-white transition-colors hover:bg-[#35664B] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#244E39]"
+              >
+                <span aria-hidden="true">▶</span>
+                20초 미리 듣기
+              </button>
+            )}
+          </div>
 
-              <p className="mt-3 text-xs leading-6 text-[#6F786E]">
-                영상 가운데 재생 버튼을 눌러 주세요.
-                YouTube 정책이나 영상 설정에 따라
-                재생이 제한될 수 있어요.
+          {/* Footer */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E7E4DC] bg-[#F7F4EE] px-7 py-5 max-sm:px-5">
+            <div>
+              <p className="text-xs font-semibold text-[#526B59]">
+                작사 · 작곡: {FEATURED_SONG.composer}
               </p>
 
-              <a
-                href={originalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 inline-flex text-sm font-semibold text-[#244E39] underline underline-offset-4"
-              >
-                YouTube에서 전체 영상 보기 ↗
-              </a>
+              <p className="mt-1 text-[11px] text-[#839184]">
+                YouTube 영상 출처 확인 중
+              </p>
             </div>
-          )}
-        </div>
+
+            <a
+              href={youtubeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-bold text-[#244E39] underline underline-offset-4"
+            >
+              YouTube에서 전체 듣기 ↗
+            </a>
+          </div>
+        </article>
+
+        <p className="mt-5 text-center text-xs leading-6 text-[#839184]">
+          오래찬은 음원을 직접 저장하거나 제공하지 않으며,
+          YouTube 플레이어를 통해 찬양을 소개합니다.
+        </p>
       </div>
     </section>
   );
