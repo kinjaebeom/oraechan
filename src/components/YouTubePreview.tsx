@@ -1,154 +1,25 @@
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import HymnVideoPlayer from "@/components/HymnVideoPlayer";
+import type { HymnVideoController } from "@/hooks/useHymnVideo";
 import {
   getHymnsByCategory,
   hymnCategories,
   type HymnCategoryId,
 } from "@/data/hymns";
 
-type Song = {
-  id: string;
-  title: string;
-};
+const FEATURED_SONG = { id: "featured-time", title: "시간을 뚫고" };
 
-type Video = {
-  videoId: string;
-  title: string;
-  channelTitle: string;
-};
-
-type ApiResponse =
-  | { video: Video; cached?: boolean }
-  | { error: string; code?: string };
-
-const FEATURED_SONG: Song = {
-  id: "featured-time",
-  title: "시간을 뚫고",
-};
-
-export default function YouTubePreview() {
-  const [categoryId, setCategoryId] =
-    useState<HymnCategoryId>("comfort");
-
-  const [selectedSong, setSelectedSong] =
-    useState<Song | null>(null);
-
-  const [video, setVideo] = useState<Video | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const abortRef = useRef<AbortController | null>(null);
-  const cacheRef = useRef(new Map<string, Video>());
-
-  const activeCategory = hymnCategories.find(
-    (category) => category.id === categoryId
-  );
-
+export default function YouTubePreview({ player }: { player: HymnVideoController }) {
+  const [categoryId, setCategoryId] = useState<HymnCategoryId>("comfort");
+  const state = player.state?.source === "collection" ? player.state : null;
+  const activeCategory = hymnCategories.find((category) => category.id === categoryId);
   const categorySongs = getHymnsByCategory(categoryId);
 
-  useEffect(() => {
-    return () => abortRef.current?.abort();
-  }, []);
-
   function changeCategory(id: HymnCategoryId) {
-    abortRef.current?.abort();
-    abortRef.current = null;
-
     setCategoryId(id);
-    setSelectedSong(null);
-    setVideo(null);
-    setLoading(false);
-    setError("");
+    if (state) player.close();
   }
-
-  async function selectSong(song: Song) {
-    abortRef.current?.abort();
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setSelectedSong(song);
-    setVideo(null);
-    setError("");
-
-    const cached = cacheRef.current.get(song.id);
-
-    if (cached) {
-      setVideo(cached);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const response = await fetch(
-        `/api/hymn-video?hymnId=${encodeURIComponent(
-          song.id
-        )}`,
-        { signal: controller.signal }
-      );
-
-      const result =
-        (await response.json()) as ApiResponse;
-
-      if (!response.ok || !("video" in result)) {
-        throw new Error(
-          "error" in result
-            ? result.error
-            : "영상을 찾지 못했어요."
-        );
-      }
-
-      if (controller.signal.aborted) return;
-
-      cacheRef.current.set(song.id, result.video);
-      setVideo(result.video);
-    } catch (err) {
-      if (controller.signal.aborted) return;
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "영상 검색 중 오류가 발생했어요."
-      );
-    } finally {
-      if (!controller.signal.aborted) {
-        setLoading(false);
-      }
-    }
-  }
-
-  function closePlayer() {
-    abortRef.current?.abort();
-    abortRef.current = null;
-
-    setSelectedSong(null);
-    setVideo(null);
-    setLoading(false);
-    setError("");
-  }
-
-  const embedUrl = video
-    ? `https://www.youtube-nocookie.com/embed/${video.videoId}` +
-      "?autoplay=0&controls=1&playsinline=1"
-    : null;
-
-  const youtubeUrl = video
-    ? `https://www.youtube.com/watch?v=${video.videoId}`
-    : null;
-
-  const fallbackUrl = selectedSong
-    ? `https://www.youtube.com/results?search_query=${
-        encodeURIComponent(
-          `${selectedSong.title} ${
-            selectedSong.id === "featured-time"
-              ? "WELOVE"
-              : "찬송가"
-          }`
-        )
-      }`
-    : null;
 
   return (
     <section
@@ -211,7 +82,7 @@ export default function YouTubePreview() {
 
             <button
               type="button"
-              onClick={() => selectSong(FEATURED_SONG)}
+              onClick={(event) => player.select(FEATURED_SONG, "collection", event.currentTarget)}
               className="w-full rounded-full bg-[#244E39] px-6 py-4 text-sm font-bold text-white transition hover:bg-[#35664B]"
             >
               ▶ 시간을 뚫고 듣기
@@ -296,14 +167,14 @@ export default function YouTubePreview() {
 
           <div className="divide-y divide-[#E7E4DC]">
             {categorySongs.map((song, index) => {
-              const active = selectedSong?.id === song.id;
+              const active = state?.song.id === song.id;
 
               return (
                 <button
                   key={song.id}
                   type="button"
                   aria-pressed={active}
-                  onClick={() => selectSong(song)}
+                  onClick={(event) => player.select(song, "collection", event.currentTarget)}
                   className={`flex w-full items-center gap-4 px-6 py-4 text-left transition max-sm:px-4 ${
                     active
                       ? "bg-[#EDF3EB]"
@@ -323,7 +194,7 @@ export default function YouTubePreview() {
                   </span>
 
                   <span className="shrink-0 rounded-full border border-[#D7DED4] px-3 py-2 text-xs font-bold text-[#244E39]">
-                    {active && loading
+                    {active && state?.status === "loading"
                       ? "검색 중"
                       : active
                         ? "선택됨"
@@ -336,95 +207,7 @@ export default function YouTubePreview() {
         </div>
       </div>
 
-      {/* 공통 YouTube 플레이어 */}
-      {selectedSong && (
-        <div
-          className="mt-8 rounded-3xl border border-[#D7DED4] bg-[#FFFCF7] p-6 max-sm:p-4"
-          aria-live="polite"
-        >
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold text-[#63846B]">
-                YOUTUBE PREVIEW
-              </p>
-
-              <h3 className="mt-2 font-serif text-2xl font-bold text-[#24382E]">
-                {selectedSong.title}
-              </h3>
-            </div>
-
-            <button
-              type="button"
-              onClick={closePlayer}
-              className="rounded-full border border-[#D7DED4] px-4 py-2 text-xs font-bold text-[#244E39]"
-            >
-              닫기
-            </button>
-          </div>
-
-          {loading && (
-            <p role="status" className="py-10 text-center text-sm text-[#63846B]">
-              YouTube 영상을 검색하고 있어요...
-            </p>
-          )}
-
-          {error && (
-            <p role="alert" className="rounded-xl bg-[#F7F4EE] p-5 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-
-          {video && embedUrl && (
-            <>
-              <div className="aspect-video overflow-hidden rounded-2xl bg-[#24382E]">
-                <iframe
-                  key={video.videoId}
-                  src={embedUrl}
-                  title={`${selectedSong.title} YouTube 영상`}
-                  className="h-full w-full"
-                  allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                />
-              </div>
-
-              <p className="mt-4 text-sm font-semibold text-[#24382E]">
-                검색된 영상: {video.title}
-              </p>
-
-              <p className="mt-2 text-xs text-[#6F786E]">
-                채널: {video.channelTitle}
-              </p>
-
-              <p className="mt-2 text-xs leading-6 text-[#6F786E]">
-                YouTube에서 검색한 결과이며 공식 영상이 아닐 수 있어요.
-              </p>
-
-              {youtubeUrl && (
-                <a
-                  href={youtubeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 inline-block text-sm font-bold text-[#244E39] underline"
-                >
-                  YouTube에서 전체 영상 보기 ↗
-                </a>
-              )}
-            </>
-          )}
-
-          {error && fallbackUrl && (
-            <a
-              href={fallbackUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 inline-block text-sm font-bold text-[#244E39] underline"
-            >
-              YouTube에서 직접 검색하기 ↗
-            </a>
-          )}
-        </div>
-      )}
+      {state && <HymnVideoPlayer state={state} onClose={() => player.close(true)} />}
 
       <p className="mt-6 text-center text-xs leading-6 text-[#839184]">
         오래찬은 음원을 별도로 저장하지 않으며

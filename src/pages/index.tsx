@@ -1,6 +1,11 @@
 
 import Head from "next/head";
 import { useState } from "react";
+import RecommendationResults from "@/components/RecommendationResults";
+import YouTubePreview from "@/components/YouTubePreview";
+import { hymnCategories, hymns, type HymnCategoryId } from "@/data/hymns";
+import { recommendHymns, type EmotionId } from "@/features/recommendations/recommend";
+import { useHymnVideo } from "@/hooks/useHymnVideo";
 
 const emotions = [
   {
@@ -39,29 +44,27 @@ const emotions = [
     title: "조용히 묵상하고 싶어요",
     sub: "말씀 앞에 머물고 싶은 시간",
   },
-] as const;
-
-const messages = [
-  "위로",
-  "평안",
-  "감사",
-  "회복",
-  "소망",
-  "용기",
-  "믿음",
-  "사명",
-] as const;
-
-type EmotionId = (typeof emotions)[number]["id"];
-type Message = (typeof messages)[number];
+] as const satisfies ReadonlyArray<{ id: EmotionId; icon: string; title: string; sub: string }>;
 
 export default function Home() {
   const [emotion, setEmotion] = useState<EmotionId | null>(null);
-  const [message, setMessage] = useState<Message | null>(null);
+  const [message, setMessage] = useState<HymnCategoryId | null>(null);
+  const player = useHymnVideo();
 
   const selectedEmotion = emotions.find(
     (item) => item.id === emotion
   );
+  const results = recommendHymns(hymns, emotion, message);
+
+  function toggleEmotion(id: EmotionId) {
+    if (player.state?.source === "recommendations") player.close();
+    setEmotion((current) => current === id ? null : id);
+  }
+
+  function toggleMessage(id: HymnCategoryId) {
+    if (player.state?.source === "recommendations") player.close();
+    setMessage((current) => current === id ? null : id);
+  }
 
   return (
     <>
@@ -234,7 +237,7 @@ export default function Home() {
                     emotion === item.id ? " is-selected" : ""
                   }`}
                   aria-pressed={emotion === item.id}
-                  onClick={() => setEmotion(item.id)}
+                  onClick={() => toggleEmotion(item.id)}
                 >
                   <span
                     className="emotion-icon"
@@ -281,58 +284,27 @@ export default function Home() {
               role="group"
               aria-label="원하는 메시지 선택"
             >
-              {messages.map((item) => (
+              {hymnCategories.map(({ id, label }) => (
                 <button
-                  key={item}
+                  key={id}
                   type="button"
                   className={`message-chip${
-                    message === item ? " is-selected" : ""
+                    message === id ? " is-selected" : ""
                   }`}
-                  aria-pressed={message === item}
-                  onClick={() => setMessage(item)}
+                  aria-pressed={message === id}
+                  onClick={() => toggleMessage(id)}
                 >
-                  {item}
+                  {label}
                 </button>
               ))}
             </div>
 
-            {/* 선택 결과 안내 */}
-            <div
-              className="selection-result"
-              aria-live="polite"
-            >
-              <div>
-                <span
-                  className="result-sparkle"
-                  aria-hidden="true"
-                >
-                  ✳
-                </span>
-
-                <div>
-                  <strong>
-                    {selectedEmotion && message
-                      ? `${selectedEmotion.title} · ${message}`
-                      : "내 마음을 위한 찬양 찾기"}
-                  </strong>
-
-                  <p>
-                    {selectedEmotion && message
-                      ? "선택한 마음과 메시지를 바탕으로 추천할 준비가 되었어요."
-                      : "감정과 메시지를 선택하면, 내 마음을 위한 찬양을 찾는 여정이 시작돼요."}
-                  </p>
-                </div>
-              </div>
-
-              <span className="result-status">
-                추천 기능 준비 중
-              </span>
-            </div>
-
-            <p className="implementation-note">
-              ※ 현재는 감정과 메시지 선택 UI를 체험할 수 있어요.
-              실제 곡 추천은 다음 개발 단계에서 연결됩니다.
-            </p>
+            <RecommendationResults
+              results={results}
+              emotion={selectedEmotion}
+              message={message}
+              player={player}
+            />
           </section>
 
           {/* 서비스 소개 */}
@@ -397,6 +369,7 @@ export default function Home() {
           </p>
         </footer>
       </div>
+      <YouTubePreview player={player} />
     </>
   );
 }

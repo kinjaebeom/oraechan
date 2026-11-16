@@ -171,6 +171,10 @@ export const hymns: Hymn[] = Array.from(
     .map((category) => category.id),
 }));
 
+export function findHymnById(id: string): Hymn | undefined {
+  return hymns.find((hymn) => hymn.id === id);
+}
+
 export function getHymnsByCategory(
   categoryId: HymnCategoryId
 ): Hymn[] {

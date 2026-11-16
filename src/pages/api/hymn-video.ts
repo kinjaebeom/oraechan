@@ -4,7 +4,7 @@ import type {
   NextApiResponse,
 } from "next";
 
-import { hymns } from "@/data/hymns";
+import { findHymnById } from "@/data/hymns";
 
 const DAILY_SEARCH_LIMIT = 15;
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -285,9 +285,7 @@ export default async function handler(
     });
   }
 
-  const hymn = hymns.find(
-    (item) => item.id === hymnId
-  );
+  const hymn = findHymnById(hymnId);
 
   const songTitle =
     hymnId === featuredSong.id

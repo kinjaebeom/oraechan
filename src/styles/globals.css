@@ -586,69 +586,6 @@ a {
 }
 
 /* ========================================
-   Selection Result
-======================================== */
-
-.selection-result {
-  background: #e8eee5;
-  border: 1px solid #d4dfd1;
-  border-radius: 21px;
-  padding: 24px 27px;
-  margin-top: 32px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 18px;
-}
-
-.selection-result > div {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-.result-sparkle {
-  display: grid;
-  place-items: center;
-  background: #d5e2d1;
-  border-radius: 50%;
-  width: 46px;
-  height: 46px;
-  flex-shrink: 0;
-  font-size: 24px;
-  color: #5b8061;
-}
-
-.selection-result strong {
-  font: 700 20px var(--font-serif);
-  letter-spacing: -.7px;
-}
-
-.selection-result p {
-  margin: 7px 0 0;
-  font-size: 12px;
-  color: #687e6c;
-  line-height: 1.7;
-}
-
-.result-status {
-  border: 1px solid #bacdb9;
-  border-radius: 999px;
-  padding: 10px 15px;
-  white-space: nowrap;
-  color: #526b57;
-  font-size: 12px;
-  font-weight: 750;
-}
-
-.implementation-note {
-  color: #77857b;
-  font-size: 12px;
-  line-height: 1.7;
-  margin-top: 15px;
-}
-
-/* ========================================
    About Section
 ======================================== */
 
@@ -965,16 +902,6 @@ a {
     align-items: start;
     flex-direction: column;
     gap: 4px;
-  }
-
-  .selection-result {
-    flex-direction: column;
-    align-items: start;
-    padding: 21px;
-  }
-
-  .selection-result strong {
-    font-size: 17px;
   }
 
   .about-layout {
