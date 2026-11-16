@@ -5,17 +5,21 @@ import {
   hymnCategories,
   type HymnCategoryId,
 } from "@/data/hymns";
-import {
-  formatPreviewTime,
-  PREVIEW_DURATION_SECONDS,
-  type HymnVideoResponse,
-  type Video,
-} from "@/lib/youtube-preview";
 
 type Song = {
   id: string;
   title: string;
 };
+
+type Video = {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+};
+
+type ApiResponse =
+  | { video: Video; cached?: boolean }
+  | { error: string; code?: string };
 
 const FEATURED_SONG: Song = {
   id: "featured-time",
@@ -30,7 +34,6 @@ export default function YouTubePreview() {
     useState<Song | null>(null);
 
   const [video, setVideo] = useState<Video | null>(null);
-  const [previewFromBeginning, setPreviewFromBeginning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,7 +69,6 @@ export default function YouTubePreview() {
 
     setSelectedSong(song);
     setVideo(null);
-    setPreviewFromBeginning(false);
     setError("");
 
     const cached = cacheRef.current.get(song.id);
@@ -88,7 +90,7 @@ export default function YouTubePreview() {
       );
 
       const result =
-        (await response.json()) as HymnVideoResponse;
+        (await response.json()) as ApiResponse;
 
       if (!response.ok || !("video" in result)) {
         throw new Error(
@@ -127,10 +129,10 @@ export default function YouTubePreview() {
     setError("");
   }
 
-  const preview = video && {
-    start: previewFromBeginning ? 0 : video.previewStart,
-    end: previewFromBeginning ? PREVIEW_DURATION_SECONDS : video.previewEnd,
-  };
+  const embedUrl = video
+    ? `https://www.youtube-nocookie.com/embed/${video.videoId}` +
+      "?autoplay=0&controls=1&playsinline=1"
+    : null;
 
   const youtubeUrl = video
     ? `https://www.youtube.com/watch?v=${video.videoId}`
@@ -212,7 +214,7 @@ export default function YouTubePreview() {
               onClick={() => selectSong(FEATURED_SONG)}
               className="w-full rounded-full bg-[#244E39] px-6 py-4 text-sm font-bold text-white transition hover:bg-[#35664B]"
             >
-              ▶ 시간을 뚫고 · {PREVIEW_DURATION_SECONDS}초 미리 듣기
+              ▶ 시간을 뚫고 듣기
             </button>
           </div>
 
@@ -372,22 +374,13 @@ export default function YouTubePreview() {
             </p>
           )}
 
-          {video && preview && (
+          {video && embedUrl && (
             <>
-              <p className="mb-3 text-sm font-semibold text-[#24382E]">
-                {previewFromBeginning ? "처음부터 미리 듣기" : "추천 미리 듣기 구간"}:{" "}
-                {formatPreviewTime(preview.start)} ~ {formatPreviewTime(preview.end)}
-              </p>
-
               <div className="aspect-video overflow-hidden rounded-2xl bg-[#24382E]">
                 <iframe
                   key={video.videoId}
-                  src={
-                    `https://www.youtube-nocookie.com/embed/${video.videoId}` +
-                    `?start=${preview.start}&end=${preview.end}` +
-                    "&autoplay=0&controls=1&playsinline=1"
-                  }
-                  title={`${selectedSong.title} 미리 듣기`}
+                  src={embedUrl}
+                  title={`${selectedSong.title} YouTube 영상`}
                   className="h-full w-full"
                   allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
@@ -404,26 +397,8 @@ export default function YouTubePreview() {
               </p>
 
               <p className="mt-2 text-xs leading-6 text-[#6F786E]">
-                YouTube에서 검색한 결과이며 공식 영상이
-                아닐 수 있어요. 자동으로 추천한 구간은 영상 길이를
-                바탕으로 추정하며 실제 후렴과 다를 수 있어요.
+                YouTube에서 검색한 결과이며 공식 영상이 아닐 수 있어요.
               </p>
-
-              {video.durationSeconds === null && (
-                <div className="mt-3">
-                  <p className="text-xs leading-6 text-[#6F786E]">
-                    영상 길이를 확인하지 못했어요. 추천 위치에서 재생하기
-                    어려우면 처음부터 미리 들을 수 있어요.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewFromBeginning(!previewFromBeginning)}
-                    className="mt-2 rounded-full border border-[#D7DED4] px-4 py-2 text-xs font-bold text-[#244E39]"
-                  >
-                    {previewFromBeginning ? "추천 구간으로 돌아가기" : "처음부터 미리 듣기"}
-                  </button>
-                </div>
-              )}
 
               {youtubeUrl && (
                 <a

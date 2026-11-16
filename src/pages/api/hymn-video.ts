@@ -5,20 +5,26 @@ import type {
 } from "next";
 
 import { hymns } from "@/data/hymns";
-import {
-  getPreviewRange,
-  parseYouTubeDuration,
-  type HymnVideoResponse,
-  type VerifiedHighlight,
-  type Video,
-} from "@/lib/youtube-preview";
 
 const DAILY_SEARCH_LIMIT = 15;
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000;
 const MAX_CANDIDATES = 25;
 
-const verifiedHighlights = new Map<string, VerifiedHighlight>();
-type VideoIdentity = Pick<Video, "videoId" | "title" | "channelTitle">;
+type Video = {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+};
+
+type ApiResponse =
+  | {
+      video: Video;
+      cached: boolean;
+    }
+  | {
+      error: string;
+      code?: string;
+    };
 
 type YouTubeSearchResponse = {
   items?: Array<{
@@ -41,9 +47,6 @@ type YouTubeVideosResponse = {
     statistics?: {
       viewCount?: string;
     };
-    contentDetails?: {
-      duration?: string;
-    };
     status?: {
       embeddable?: boolean;
       privacyStatus?: string;
@@ -54,8 +57,7 @@ type YouTubeVideosResponse = {
   };
 };
 
-type RankedVideo = VideoIdentity & {
-  duration?: string;
+type RankedVideo = Video & {
   viewCount: number;
   priority: number;
 };
@@ -98,7 +100,7 @@ const LIVE_KEYWORDS = [
   "실황",
 ];
 
-// 미리 듣기와 어울리지 않는 영상
+// 찬양 감상에 어울리지 않는 영상
 const EXCLUDED_KEYWORDS = [
   "mr",
   "inst.",
@@ -167,7 +169,7 @@ function normalize(value: string): string {
 }
 
 // 악보, MR 등 제외
-function isExcluded(video: VideoIdentity): boolean {
+function isExcluded(video: Video): boolean {
   const title = video.title.toLowerCase();
 
   return EXCLUDED_KEYWORDS.some((keyword) =>
@@ -176,7 +178,7 @@ function isExcluded(video: VideoIdentity): boolean {
 }
 
 // 밴드 및 찬양팀 우선순위 계산
-function calculatePriority(video: VideoIdentity): number {
+function calculatePriority(video: Video): number {
   const title = video.title.toLowerCase();
   const channel = video.channelTitle.toLowerCase();
 
@@ -230,7 +232,7 @@ function rankVideos(
       );
     })
     .map((item): RankedVideo => {
-      const video: VideoIdentity = {
+      const video: Video = {
         videoId: item.id!,
         title: item.snippet!.title!,
         channelTitle:
@@ -243,7 +245,6 @@ function rankVideos(
 
       return {
         ...video,
-        duration: item.contentDetails?.duration,
         viewCount: Number.isFinite(parsedViews)
           ? parsedViews
           : 0,
@@ -264,7 +265,7 @@ function rankVideos(
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<HymnVideoResponse>
+  res: NextApiResponse<ApiResponse>
 ) {
   res.setHeader("Cache-Control", "private, no-store");
 
@@ -407,7 +408,7 @@ export default async function handler(
     // 2. 검색된 영상들의 실제 조회수와 상태 확인
     // videos.list는 후보 전체를 한 번에 조회합니다.
     const videoParams = new URLSearchParams({
-      part: "snippet,statistics,status,contentDetails",
+      part: "snippet,statistics,status",
       id: videoIds.join(","),
       key: apiKey,
     });
@@ -451,14 +452,10 @@ export default async function handler(
       });
     }
 
-    const { videoId } = selected;
-    const durationSeconds = parseYouTubeDuration(selected.duration);
     const video: Video = {
-      videoId,
+      videoId: selected.videoId,
       title: selected.title,
       channelTitle: selected.channelTitle,
-      durationSeconds,
-      ...getPreviewRange(videoId, durationSeconds, verifiedHighlights.get(videoId)),
     };
 
     // 4. 선택한 영상을 24시간 캐시
